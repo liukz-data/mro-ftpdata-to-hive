@@ -1,0 +1,20 @@
+(line:https://blog.csdn.net/shangzhiliang_2008/article/details/6080696)
+enterLocalActiveMode，enterRemoteActiveMode，enterRemotePassiveMode。
+我的理解大概是这样的
+enterLocalPassiveMode：设置客户端PASV模式
+static int PASSIVE_LOCAL_DATA_CONNECTION_MODE
+enterLocalActiveMode：设置客户端PORT模式
+static int ACTIVE_LOCAL_DATA_CONNECTION_MODE
+enterRemoteActiveMode：server to server
+static int ACTIVE_REMOTE_DATA_CONNECTION_MODE
+requiring the one(client) connect to the other server's data port to initiate a data transfer.
+enterRemotePassiveMode：server to server
+static int PASSIVE_REMOTE_DATA_CONNECTION_MODE
+requiring the other server to connect to the first server's data port to initiate a data transfer
+
+对FTP协议了解的不太清楚是一个很大的原因，有时间要看看FTP协议的内容了。
+
+查了一些资料：
+FTP传输有两种模式：主动模式（PORT）和被动模式（PASV）
+主动模式：客户端主动连服务器端；端口用20
+被动模式：服务器端连客户端；随机打开一个高端端口（端口号大于1024）
