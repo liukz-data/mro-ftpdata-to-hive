@@ -5,7 +5,12 @@ import java.text.SimpleDateFormat
 object Test3 {
 
   def main(args: Array[String]): Unit = {
-    print(111)
+
+ /*   PgEnbidCityTb.init("could008",5432,"zhangyan","#Mrdas17P19!","mlogdb")
+    println(PgEnbidCityTb.selectEnbidCityname().toBuffer)*/
+    LogToPgDBTool.init("could008",5432,"zhangyan","#Mrdas17P19!","mlogdb")
+    LogToPgDBTool.insertMergeLog("1","2")
+    //print(111)
    /* val filename = "TD-LTE_MRO_HUAWEI_010221240007_104210_20181211000000.zip"
     val fileNameArr = filename.split("_")
     val enbid = fileNameArr(fileNameArr.size-2).toInt

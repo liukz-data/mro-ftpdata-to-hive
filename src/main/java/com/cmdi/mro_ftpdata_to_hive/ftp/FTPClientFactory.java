@@ -94,13 +94,13 @@ public class FTPClientFactory implements Serializable {
     /* (non-Javadoc)
      * @see org.apache.commons.pool.PoolableObjectFactory#validateObject(java.lang.Object)
      */
-    public boolean validateObject(Object o) {
-        FTPClient ftpClient = (FTPClient) o;
-        try {
-            return ftpClient.sendNoOp();
+    public boolean validateObject(Object o) throws IOException {
+        FTPClient ftpClient = (FTPClient) o;/*
+        try {*/
+            return ftpClient.sendNoOp();/*
         } catch (IOException e) {
             throw new RuntimeException("Failed to validate client: " + e, e);
-        }
+        }*/
     }
 
     public void activateObject(Object o) throws Exception {

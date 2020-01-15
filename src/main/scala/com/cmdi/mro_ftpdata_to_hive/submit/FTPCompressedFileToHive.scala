@@ -4,14 +4,14 @@ import java.text.SimpleDateFormat
 import java.util.Date
 
 import com.cmdi.mro_ftpdata_to_hive.ftp.FTPClientPool
-import com.cmdi.mro_ftpdata_to_hive.load.LoadDataToHive
+import com.cmdi.mro_ftpdata_to_hive.load. LoadDataToHive
 import com.cmdi.mro_ftpdata_to_hive.parse._
 import com.cmdi.mro_ftpdata_to_hive.util._
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.fs.FileSystem
 import org.apache.log4j.{Level, Logger}
-import org.apache.spark.sql.SparkSession
 import org.apache.spark.SparkConf
+import org.apache.spark.sql.SparkSession
 
 import scala.collection.JavaConverters._
 
@@ -53,6 +53,31 @@ object FTPCompressedFileToHive {
       }
     }
 
+    //加载配置文件
+    val confPro = PropertiesUtil.getDiskProperties(confPath)
+    FTPCompressedFileToHiveHelper.appConfPro = confPro
+    FTPCompressedFileToHiveHelper.initPg()
+
+    val log_level = confPro.getProperty("log_level")
+    Logger.getLogger("com.cmdi").setLevel(Level.toLevel(log_level.toUpperCase(), Level.INFO))
+    //初始化driver端的ftp连接池
+    val ftpClientPoolDriver = FTPCompressedFileToHiveHelper.initFTPClientPool(true)
+    println(sm.format(new Date()) + "INFO FTPCompressedFileToHive:开始查找所有符合条件的ftp文件，匹配条件为：" + matchStr)
+    val ftpClient = ftpClientPoolDriver.borrowObject() //从ftp连接池拿ftp客户端
+    //得到所有ftp上所有符合匹配条件的，ftp文件
+    val ftpFiles = new FTPFindCompressedFileUtil().getAllCompressedFile(ftpClient, ftpClient.printWorkingDirectory(), s".*$matchStr.*").asScala
+    ftpClient.close()
+    println(sm.format(new Date()) + "INFO FTPCompressedFileToHive:完成查找所有符合条件的ftp文件，匹配条件为：" + matchStr)
+
+    println("ftpFiles.size:"+ftpFiles.size)
+    println(sm.format(new Date()) + "INFO FTPCompressedFileToHive:开始在ftp创建“省/日期/地市/基站id”文件夹和移动ftp文件")
+    //整理文件所需要的属性信息
+    FTPDirCollating.putNecessaryPros( ftpClientPoolDriver, ftpFiles, confPro, logDate)
+    val ftpFileInfoArr = FTPDirCollating.collatingFileAndGetRdd //整理文件和得到下一步所需要的数据
+    println(sm.format(new Date()) + "INFO FTPCompressedFileToHive:完成在ftp创建“省/日期/地市/基站id”文件夹和移动ftp文件")
+    ftpClientPoolDriver.close()
+    ftpFiles.clear()
+
     hadoopConf = new Configuration()
     if (hadoopConfMap != null) {
       // 获取自定义的 hive-site.xml core-site.xml hdfs-site.xml mapred-site.xml yarn-site.xml 的内容
@@ -64,18 +89,12 @@ object FTPCompressedFileToHive {
       })
       AccessHdfsUtil.test1(hadoopConf)
     }
-    //加载配置文件
-    val confPro = PropertiesUtil.getDiskProperties(confPath)
-    FTPCompressedFileToHiveHelper.appConfPro = confPro
-    FTPCompressedFileToHiveHelper.initPg()
 
-    val log_level = confPro.getProperty("log_level")
     val comp_merge = confPro.getProperty("comp_merge")
     val mroobj_json = confPro.getProperty("mroobj_json")
     val jsonFilePath = mroobj_json
     Logger.getLogger("org").setLevel(Level.toLevel(log_level.toUpperCase(), Level.INFO))
     Logger.getLogger("hive").setLevel(Level.toLevel(log_level.toUpperCase(), Level.INFO))
-    Logger.getLogger("com.cmdi").setLevel(Level.toLevel(log_level.toUpperCase(), Level.INFO))
 
     //解析json
     val parseJson = new ParseJson()
@@ -97,31 +116,17 @@ object FTPCompressedFileToHive {
 
     val spark = SparkSession.builder().config(sconf).enableHiveSupport().getOrCreate()
     val sc = spark.sparkContext
-    //初始化driver端的ftp连接池
-    val ftpClientPoolDriver = FTPCompressedFileToHiveHelper.initFTPClientPool(true)
+
     //初始化executor端的ftp连接池
     val ftpClientPoolExecutor = FTPCompressedFileToHiveHelper.initFTPClientPool(false)
     val ftpClientPoolBroadcast = sc.broadcast[FTPClientPool](ftpClientPoolExecutor) //将executor端ftp连接池广播出去
     val parseJsonBroadcast = sc.broadcast[ParseJson](parseJson) //广播parseJson
     val mroFieldTypeConvertUtilBrocast = sc.broadcast[MroFieldTypeConvertUtil](mroFieldTypeConvertUtil)
-    val ftpClient = ftpClientPoolDriver.borrowObject() //从ftp连接池拿ftp客户端
-    println(sm.format(new Date()) + "INFO FTPCompressedFileToHive:开始查找所有符合条件的ftp文件，匹配条件为：" + matchStr)
-    //得到所有ftp上所有符合匹配条件的，ftp文件
-    val ftpFiles = new FTPFindCompressedFileUtil().getAllCompressedFile(ftpClient, ftpClient.printWorkingDirectory(), s".*$matchStr.*").asScala
-    ftpClient.close()
-    println(sm.format(new Date()) + "INFO FTPCompressedFileToHive:完成查找所有符合条件的ftp文件，匹配条件为：" + matchStr)
 
-    println("ftpFiles.size:"+ftpFiles.size)
-    println(sm.format(new Date()) + "INFO FTPCompressedFileToHive:开始在ftp创建“省/日期/地市/基站id”文件夹和移动ftp文件")
-    //整理文件所需要的属性信息
-    FTPDirCollating.putNecessaryPros(spark, sc, ftpClientPoolDriver, ftpClientPoolBroadcast, ftpFiles, confPro, logDate)
-    val cityHourArrFtpFileInfo = FTPDirCollating.collatingFileAndGetRdd //整理文件和得到下一步所需要的rdd
-    println(sm.format(new Date()) + "INFO FTPCompressedFileToHive:完成在ftp创建“省/日期/地市/基站id”文件夹和移动ftp文件")
-    ftpClientPoolDriver.close()
     val fs = FileSystem.get(hadoopConf)
     //主调度逻辑，下载ftp压缩文件数据，放入hive
     LoadDataToHive.putLoadDataToHiveNeccessaryPros(spark, sc, ftpClientPoolBroadcast, logDate, fs, confPro,parseJsonBroadcast,mroFieldTypeConvertUtilBrocast)
-    LoadDataToHive.loadDataToHive(cityHourArrFtpFileInfo)
+    LoadDataToHive.loadDataToHive(ftpFileInfoArr)
 
     spark.stop()
     println(sm.format(new Date()) + "INFO FTPCompressedFileToHive:结束执行mro解析xml及入hive库程序")

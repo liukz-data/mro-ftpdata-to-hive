@@ -6,6 +6,7 @@ import scala.collection.mutable
 
 object Test1 {
 
+
   def main(args: Array[String]): Unit = {
     var nameMold: mutable.HashMap[String, String] = new mutable.HashMap[String, String]
     nameMold("a") =  "b"

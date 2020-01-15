@@ -3,7 +3,9 @@ package com.cmdi.mro_ftpdata_to_hive.ftp;
 import org.apache.commons.net.ftp.FTPClient;
 import org.apache.commons.pool.ObjectPool;
 import org.apache.commons.pool.PoolableObjectFactory;
+import org.apache.log4j.Logger;
 
+import java.io.IOException;
 import java.io.Serializable;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
@@ -57,16 +59,28 @@ public class FTPClientPool implements ObjectPool,Serializable {
      */
     @Override
     public FTPClientUtil borrowObject() throws Exception {
-        FTPClientUtil client = pool.take();
+        // FTPClientUtil client = pool.take();
+        FTPClientUtil client = pool.poll(3,TimeUnit.SECONDS);
         if (client == null) {
             client = factory.makeObject(pool);
-            addObject();
-        } else if (!factory.validateObject(client)) {//验证不通过
-            //使对象在池中失效
-            invalidateObject(client);
-            //制造并添加新对象到池中
-            client = factory.makeObject(pool);
-            addObject();
+            //addObject();
+            // } else if (!factory.validateObject(client)) {//验证不通过
+        } else{
+            boolean isValidate = false;
+            try {
+                isValidate = factory.validateObject(client);
+            }catch (IOException e){
+                //此处为解决org.apache.commons.net.ftp.FTPConnectionClosedException: FTP response 421 received.  Server closed connection.异常
+                Logger.getLogger("com.cmdi.mro_ftpdata_to_hive.ftp.FTPClientPool").error("已解决:"+e.toString()+"    ,com.cmdi.mro_ftpdata_to_hive.ftp.FTPClientPool line 74");
+            }
+
+            if(!isValidate){//验证不通过
+                //使对象在池中失效
+                invalidateObject(client);
+                //制造并添加新对象到池中
+                client = factory.makeObject(pool);
+                //addObject();
+            }
         }
         return client;
 

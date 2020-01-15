@@ -3,7 +3,7 @@ package com.cmdi.mro_ftpdata_to_hive.submit
 import java.util.Properties
 
 import com.cmdi.mro_ftpdata_to_hive.ftp._
-import com.cmdi.mro_ftpdata_to_hive.util.{PgMergeLogicTb, PropertiesUtil}
+import com.cmdi.mro_ftpdata_to_hive.util.{LogToPgDBTool, PgEnbidCityTb, PgMergeLogicTb, PropertiesUtil}
 import org.apache.commons.net.ftp.FTP
 
 /**
@@ -12,7 +12,10 @@ import org.apache.commons.net.ftp.FTP
 object FTPCompressedFileToHiveHelper {
 
   var appConfPro:Properties = _
+  @volatile
+  var  pgErrorLogConIsInit = false
 
+  //初始化ftp连接池
   def initFTPClientPool(isDriver:Boolean): FTPClientPool={
     val ftp_conf= appConfPro.getProperty("ftp_conf")
     val ftp_conf_pro = PropertiesUtil.getDiskProperties(ftp_conf)
@@ -45,6 +48,7 @@ object FTPCompressedFileToHiveHelper {
     ftpClientPool
   }
 
+  //初始化进度pg
   def initPg():Unit={
     val pgdb_ip = appConfPro.getProperty("pgdb_ip")
     val pgdb_port = appConfPro.getProperty("pgdb_port").toInt
@@ -53,6 +57,27 @@ object FTPCompressedFileToHiveHelper {
     val pgdb_db = appConfPro.getProperty("pgdb_db")
     //初始化pg数据库
     PgMergeLogicTb.init(pgdb_ip, pgdb_port, pgdb_user, pgdb_passwd, pgdb_db)
+    PgEnbidCityTb.init(pgdb_ip, pgdb_port, pgdb_user, pgdb_passwd, pgdb_db)
+  }
+
+  //此处生成的连接为记录解析xml文件时所遇到的文件Exception
+  def initPg2():Unit={
+    if(!pgErrorLogConIsInit){
+      this.synchronized{
+        //初始化pg数据库
+        if(!pgErrorLogConIsInit){
+          val pgdb_ip = appConfPro.getProperty("pgdb_ip")
+          val pgdb_port = appConfPro.getProperty("pgdb_port").toInt
+          val pgdb_user = appConfPro.getProperty("pgdb_user")
+          val pgdb_passwd = appConfPro.getProperty("pgdb_passwd")
+          val pgdb_db = appConfPro.getProperty("pgdb_db")
+          LogToPgDBTool.init(pgdb_ip, pgdb_port, pgdb_user, pgdb_passwd, pgdb_db)
+          FTPCompressedFileToHiveHelper.pgErrorLogConIsInit = true
+        }
+      }
+    }
+
+
   }
 
 

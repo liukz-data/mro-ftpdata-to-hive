@@ -6,13 +6,13 @@ import java.util.{Date, Properties}
 import com.cmdi.mro_ftpdata_to_hive.bean.FTPFileInfo
 import com.cmdi.mro_ftpdata_to_hive.ftp.FTPClientPool
 import com.cmdi.mro_ftpdata_to_hive.parse.{ParseJson, ParseSchema, ParseXml}
+import com.cmdi.mro_ftpdata_to_hive.submit.FTPCompressedFileToHiveHelper
 import com.cmdi.mro_ftpdata_to_hive.util.{MroFieldTypeConvertUtil, PgMergeLogicTb, PropertiesUtil}
 import org.apache.hadoop.fs.{FileSystem, Path}
 import org.apache.spark.SparkContext
 import org.apache.spark.broadcast.Broadcast
-import org.apache.spark.rdd.RDD
-import org.apache.spark.sql.{Row, SaveMode, SparkSession}
 import org.apache.spark.sql.types.StructType
+import org.apache.spark.sql.{Row, SaveMode, SparkSession}
 
 import scala.collection.mutable.ArrayBuffer
 
@@ -51,7 +51,7 @@ object LoadDataToHive {
     *
     * @param collatingFileRdd 整理完文件所得到的rdd
     */
-  def loadDataToHive(cityHourArrFtpFileInfo: Array[(String, ArrayBuffer[FTPFileInfo])]): Unit = {
+  def loadDataToHive(ftpFileInfoArr: Array[FTPFileInfo]): Unit = {
     val merge_hive_files = appConfPro.getProperty("merge_hive_files").toInt
     val ftpClientPoolBroadcast = LoadDataToHive.ftpClientPoolBroadcast
     val parseJsonBroadcast = LoadDataToHive.parseJsonBroadcast
@@ -59,8 +59,14 @@ object LoadDataToHive {
     val ftp_conf= appConfPro.getProperty("ftp_conf")
     val ftp_conf_pro = PropertiesUtil.getDiskProperties(ftp_conf)
     val ftp_clientpool_size_executor = ftp_conf_pro.getProperty("ftp_clientpool_size_executor").toInt
+    val appConfProBroadcast = sc.broadcast[Properties](appConfPro)
+     val cityHourArrFtpFileInfo =  sc.parallelize(ftpFileInfoArr).map(ftpFileInfo => {
+        //以city_hour为key，ArrayBuffer(ftpFileInfo)为value
+        (ftpFileInfo.getCityName + "_" + ftpFileInfo.getFileHour, ArrayBuffer(ftpFileInfo))
+      }).reduceByKey((ftpFileInfo1, ftpFileInfo2) => {
+      ftpFileInfo1 ++= ftpFileInfo2
+    }).collect()
     cityHourArrFtpFileInfo.par.foreach(hourFtpFileInfo => {
-
       val pro = PropertiesUtil.getDiskProperties(city_date_hour_conf_file_path)
       val taskid = pro.getProperty("taskid").toInt
       val cityNameHour = hourFtpFileInfo._1.split("_")
@@ -72,7 +78,11 @@ object LoadDataToHive {
 
      // println("ftpFileInfo:"+ftpFileInfo.toBuffer)
       //此处ftpClientPool关闭未实现
-      val dataRdd = sc.parallelize(ftpFileInfo).filter(ftpFileInfo => ftpFileInfo.isExistEnbid).mapPartitions{ partitions => {
+      val dataRdd = sc.parallelize(ftpFileInfo).mapPartitions{ partitions => {
+
+        val appConfPro = appConfProBroadcast.value
+        FTPCompressedFileToHiveHelper.appConfPro = appConfPro
+        FTPCompressedFileToHiveHelper.initPg2()
         val ftpClientPool = ftpClientPoolBroadcast.value
         ftpClientPool.initPool(ftp_clientpool_size_executor)
         val parseJson = parseJsonBroadcast.value

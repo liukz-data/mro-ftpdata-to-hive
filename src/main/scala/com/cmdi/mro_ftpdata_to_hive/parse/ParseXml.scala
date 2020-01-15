@@ -5,10 +5,10 @@ import java.io.{EOFException, InputStream}
 
 import com.cmdi.mro_ftpdata_to_hive.bean.FTPFileInfo
 import com.cmdi.mro_ftpdata_to_hive.ftp.FTPClientPool
-import com.cmdi.mro_ftpdata_to_hive.util.{CompressedFileUtil, FileLoadToLocal, MroFieldTypeConvertUtil}
+import com.cmdi.mro_ftpdata_to_hive.util.{CompressedFileUtil, FileLoadToLocal, LogToPgDBTool, MroFieldTypeConvertUtil}
 import com.ctc.wstx.exc.WstxIOException
-import javax.xml.stream.{XMLInputFactory, XMLStreamConstants, XMLStreamException, XMLStreamReader}
-import org.apache.log4j.{Level, Logger}
+import javax.xml.stream.{XMLInputFactory, XMLStreamConstants, XMLStreamReader}
+import org.apache.log4j.Logger
 
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
@@ -274,6 +274,8 @@ object ParseXml {
           },
           "Error File:" + fileAllPath)
         logger.error(exceptionMsg)
+        //错误日志记录到pg
+        LogToPgDBTool.insertMergeLog(String.join("_",ftpFileInfo.getCityName,ftpFileInfo.getFileDate,ftpFileInfo.getFileHour),exceptionMsg)
         return new ArrayBuffer[Array[Any]]()
       }
       case ex: EOFException => {
@@ -283,6 +285,8 @@ object ParseXml {
           },
           "Error File:" + fileAllPath)
         logger.error(exceptionMsg)
+        //错误日志记录到pg
+        LogToPgDBTool.insertMergeLog(String.join("_",ftpFileInfo.getCityName,ftpFileInfo.getFileDate,ftpFileInfo.getFileHour),exceptionMsg)
         return new ArrayBuffer[Array[Any]]()
       }
     }finally {
