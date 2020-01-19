@@ -1,0 +1,22 @@
+此项目为 中国移动设计院 吴博士 项目名称：大数据网优平台-统一数据采集及共享平台
+此模块为：spark版本xml解析和入库
+一、执行脚本
+1.建表脚本
+scripts/mro-ftpdata-to-hive-create-tb.sh
+2.解析和入库脚本
+scripts/mro-ftpdata-to-hive.sh
+二、程序入口类
+1.建表
+com.cmdi.mro_ftpdata_to_hive.submit.CreateMroTable
+2.下载文件、解析文件和入hive库
+com.cmdi.mro_ftpdata_to_hive.submit.FTPCompressedFileToHive
+三、整体流程介绍
+driver端：
+1.过滤出“基站id”文件，得到所有所需ftp文件
+2.创建“省/日期/地市/基站id”文件夹，整理文件到对应目录
+3.广播ftp连接池和其它所需变量
+executor端：
+1.利用ftp连接池进行文件的下载
+2.解析下载的xml文件并将数据放入hive表
+下载解析调度类：com.cmdi.mro_ftpdata_to_hive.load.LoadDataToHive
+解析xml主要逻辑类：com.cmdi.mro_ftpdata_to_hive.parse.ParseXml

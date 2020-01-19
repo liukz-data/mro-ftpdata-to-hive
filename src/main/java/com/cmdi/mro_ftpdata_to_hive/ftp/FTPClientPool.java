@@ -16,26 +16,26 @@ import java.util.concurrent.TimeUnit;
  * @author heaven
  */
 public class FTPClientPool implements ObjectPool,Serializable {
-    private static final int DEFAULT_POOL_SIZE = 16;
+    //private static final int DEFAULT_POOL_SIZE = 16;
    // private  LinkedBlockingQueue<FTPClientUtilTest> pool = new LinkedBlockingQueue<FTPClientUtilTest>();
     private  LinkedBlockingQueue<FTPClientUtil> pool;
     private final FTPClientFactory factory;
     private volatile boolean init = false;
 
     /**
-     * @param factory
-     * @throws Exception
+     * @param factory ftp客户端工具
+     *
      */
-    public FTPClientPool(FTPClientFactory factory) throws Exception {
+    public FTPClientPool(FTPClientFactory factory){
         this.factory = factory;
-        pool = new LinkedBlockingQueue<FTPClientUtil>();
+        pool = new LinkedBlockingQueue<>();
     }
 
     /**
      * 初始化连接池，需要注入一个工厂来提供FTPClient实例
      *
-     * @param maxPoolSize
-     * @throws Exception
+     * @param maxPoolSize  ftp连接池最大大小
+     * @throws Exception 抛出异常
      */
     public void initPool(int maxPoolSize) throws Exception {
 
@@ -96,6 +96,11 @@ public class FTPClientPool implements ObjectPool,Serializable {
         }
     }
 
+    /**
+     *
+     * @param o 需要移除的连接
+     * @throws Exception 抛出异常
+     */
     @Override
     public void invalidateObject(Object o) throws Exception {
         FTPClient client = (FTPClient) o;

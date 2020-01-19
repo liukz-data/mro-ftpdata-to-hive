@@ -1,11 +1,6 @@
 package com.cmdi.mro_ftpdata_to_hive.util;
 
 import java.io.Serializable;
-import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
-import java.util.HashMap;
-import java.util.LinkedHashMap;
-import java.util.Map;
 
 /**
  * 此类为将字符串字段类型转换为byte，short，int，bigdecimal类型的工具类
@@ -14,11 +9,11 @@ public class MroFieldTypeConvertUtil implements Serializable {
 
     private MroFieldTypeConvert mroConvert = new MroFieldTypeConvert();
     //key为数据类型，value为Method对象，
-    private Map<String, Method> stringMethodMap = new HashMap<String, Method>();
-    private MroFieldTypeConvert mroFieldTypeConvertObj = null;
+   // private Map<String, Method> stringMethodMap = new HashMap<String, Method>();
+  //  private MroFieldTypeConvert mroFieldTypeConvertObj = null;
 
     //转换数据类型所需要的初始化，构造了stringMethodMap中<key，value>对应关系
-    public void convertInit() throws Exception {
+  /*  public void convertInit() throws Exception {
         Class<MroFieldTypeConvert> mroFieldTypeConvert = MroFieldTypeConvert.class;
         mroFieldTypeConvertObj = mroFieldTypeConvert.newInstance();
         //利用java反射得到method对象数组
@@ -39,17 +34,14 @@ public class MroFieldTypeConvertUtil implements Serializable {
             }
         }
 
-    }
-
+    }*/
 
     /**
      * 执行字符串转换
-     *
-     * @param fieldType  字段类型，int，byte，short，bigint
+     * @param fieldType 字段类型，int，byte，short，bigint
      * @param fieldValue 字段的值
-     * @return Object
-     * @throws InvocationTargetException
-     * @throws IllegalAccessException
+     * @return obj 转换后的值
+     * @throws Exception 字段类型非法时抛出此异常
      */
     public Object executeConvert(String fieldType, String fieldValue) throws Exception {
         Object obj = null;

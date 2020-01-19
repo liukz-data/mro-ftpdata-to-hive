@@ -18,15 +18,18 @@ import scala.collection.mutable.ArrayBuffer
   */
 object ParseXml {
 
-  val logger = Logger.getLogger("com.cmdi.mro_ftpdata_to_hive.parse.ParseXml")
+  private val logger = Logger.getLogger("com.cmdi.mro_ftpdata_to_hive.parse.ParseXml")
+
 
   /**
-    * 解析xml的逻辑
     *
     * @param ftpClientPool ftp 客户端连接池
-    * @param ftpFileInfo   tp文件信息bean
-    * @return ArrayBuffer[Array[Any]]
-    **/
+    * @param ftpFileInfo ftpFileInfo Bean对象
+    * @param parseJson ParseJson对象
+    * @param mroFieldTypeConvertUtil 转换byte、int、short、long类型工具
+    * @param nameMoldToMap 表中字段名和数据类型的对应关系
+    * @return
+    */
   def parseXml(ftpClientPool: FTPClientPool, ftpFileInfo: FTPFileInfo, parseJson: ParseJson, mroFieldTypeConvertUtil: MroFieldTypeConvertUtil, nameMoldToMap: Map[String, String]): ArrayBuffer[Array[Any]] = {
     val nameMold = parseJson.nameMold
     val nameArr = parseJson.nameArr.toArray
@@ -55,7 +58,7 @@ object ParseXml {
     val mroKeyStrMapSmr3 = new mutable.LinkedHashMap[String, mutable.HashSet[Int]]()
     //存储整个文件的符合条件的数据，对应hive中多行数据
     val objctArray = new ArrayBuffer[Array[Any]]()
-    val objectStrSize = nameArr.size + 3
+    val objectStrSize = nameArr.length + 3
     //对应数据库中一行数据
     var objectStr: Array[Any] = null
     //变量存储一个mrokey，目的是为了smr2 smr3找到自身所对应的object
@@ -81,9 +84,9 @@ object ParseXml {
       xmlStreamReader = XMLInputFactory.newInstance.createXMLStreamReader(copressedFileStream)
 
       while (xmlStreamReader.hasNext) {
-        var xmlType = xmlStreamReader.next()
+        val xmlType = xmlStreamReader.next()
         if (xmlType == XMLStreamConstants.START_ELEMENT) {
-          val xmlName = xmlStreamReader.getName().toString()
+          val xmlName = xmlStreamReader.getName.toString
 
           if ("eNB".equals(xmlName)) {
             enbId = xmlStreamReader.getAttributeValue(null, "id")
@@ -92,7 +95,7 @@ object ParseXml {
             //smr标签中存放着schema信息，有一个新的smr，就清理一次map
             schemaIndexMapSc.clear()
             schemaIndexMapNc.clear()
-            val smrValue = xmlStreamReader.getElementText()
+            val smrValue = xmlStreamReader.getElementText
             var smrValueReplace = smrValue.replace("MR.", "")
 
             //当smr标签计数到第三个的时候，对其内部rip标签进行处理
@@ -233,7 +236,7 @@ object ParseXml {
                       val ncField = valueFields(index._2)
                       if (!"NIL".equals(ncField)) {
                         //计算出此nc字段数据在objectStr中位置，并放入objectStr
-                        objectStr(ncDataStartIndex + (ncVCount - 1) * ncNameArr.size + index._1) = mroFieldTypeConvertUtil.executeConvert(ncMoldArr(index._1), valueFields(index._2))
+                        objectStr(ncDataStartIndex + (ncVCount - 1) * ncNameArr.length + index._1) = mroFieldTypeConvertUtil.executeConvert(ncMoldArr(index._1), valueFields(index._2))
                       }
                     })
                   }
@@ -242,8 +245,8 @@ object ParseXml {
                   //找到第三个smr标签下对应的全部object，将对应数据放入object
                   val curHashSet = mroKeyStrMapSmr3.get(mroKeyStr2Key)
                   curHashSet match {
-                    case Some(curHashSet) =>
-                      curHashSet.foreach(index => {
+                    case Some(curHashSet1) =>
+                      curHashSet1.foreach(index => {
                         val objectData = objctArray(index)
                         currSmr3Seq match {
                           case "2" =>
@@ -267,7 +270,7 @@ object ParseXml {
         }
       }
     } catch {
-      case ex: WstxIOException => {
+      case ex: WstxIOException =>
         val exceptionMsg = String.join("\n    ",
           ex.getClass.getName+": "+ ex.getMessage, ex.getStackTrace.mkString("\n    "), {
             if (ex.getCause == null) "" else "\nCaused by: "+ex.getCause.toString+"\n    "+ex.getCause.getStackTrace.mkString("\n    ")
@@ -277,8 +280,8 @@ object ParseXml {
         //错误日志记录到pg
         LogToPgDBTool.insertMergeLog(String.join("_",ftpFileInfo.getCityName,ftpFileInfo.getFileDate,ftpFileInfo.getFileHour),exceptionMsg)
         return new ArrayBuffer[Array[Any]]()
-      }
-      case ex: EOFException => {
+
+      case ex: EOFException =>
         val exceptionMsg = String.join("\n    ",
           ex.getClass.getName+": "+ ex.getMessage, ex.getStackTrace.mkString("\n    "), {
             if (ex.getCause == null) "" else "\nCaused by: "+ex.getCause.toString+"\n    "+ex.getCause.getStackTrace.mkString("\n    ")
@@ -288,7 +291,7 @@ object ParseXml {
         //错误日志记录到pg
         LogToPgDBTool.insertMergeLog(String.join("_",ftpFileInfo.getCityName,ftpFileInfo.getFileDate,ftpFileInfo.getFileHour),exceptionMsg)
         return new ArrayBuffer[Array[Any]]()
-      }
+
     }finally {
       if(xmlStreamReader != null)      xmlStreamReader.close()
       if(copressedFileStream != null)  copressedFileStream.close()

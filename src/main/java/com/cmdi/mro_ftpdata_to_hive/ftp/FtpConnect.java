@@ -2,6 +2,7 @@ package com.cmdi.mro_ftpdata_to_hive.ftp;
 
 import org.apache.commons.net.ftp.FTPClient;
 
+
 public class FtpConnect {
     private static FTPClient fc;
 

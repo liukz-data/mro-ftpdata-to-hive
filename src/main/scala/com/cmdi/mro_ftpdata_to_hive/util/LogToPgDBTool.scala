@@ -6,6 +6,9 @@ import java.util.Date
 
 import scala.collection._
 
+/**
+  * 将executor上Exeception日志写入merge_data_log
+  */
 object LogToPgDBTool {
   private var conn: Connection = _
   private var preparedStatement: PreparedStatement = _

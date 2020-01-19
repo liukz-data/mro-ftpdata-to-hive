@@ -5,6 +5,9 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.nio.ByteBuffer;
 
+/**
+ * 将ftp上文件下载到本地内存
+ */
 public class FileLoadToLocal {
     public static ByteArrayInputStream fileLoadToLocalAndGetInputStream(int ftpFileSize,InputStream in ) throws IOException {
         ByteBuffer buffer = ByteBuffer.allocate(ftpFileSize);

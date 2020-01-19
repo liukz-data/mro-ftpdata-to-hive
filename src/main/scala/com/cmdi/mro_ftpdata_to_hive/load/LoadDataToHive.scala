@@ -53,8 +53,10 @@ object LoadDataToHive {
     */
   def loadDataToHive(ftpFileInfoArr: Array[FTPFileInfo]): Unit = {
     val merge_hive_files = appConfPro.getProperty("merge_hive_files").toInt
+    //ftp连接池
     val ftpClientPoolBroadcast = LoadDataToHive.ftpClientPoolBroadcast
     val parseJsonBroadcast = LoadDataToHive.parseJsonBroadcast
+    //字段类型转换工具
     val mroFieldTypeConvertUtilBrocast = LoadDataToHive.mroFieldTypeConvertUtilBrocast
     val ftp_conf= appConfPro.getProperty("ftp_conf")
     val ftp_conf_pro = PropertiesUtil.getDiskProperties(ftp_conf)
@@ -76,15 +78,13 @@ object LoadDataToHive {
       println(sm.format(new Date()) + s"开始执行cityName=$cityName logDate=$logDate hour=$hour 的xml解析逻辑和入库程序")
      PgMergeLogicTb.insert(taskid, cityName, logDate, hour, "merge", "start")
 
-     // println("ftpFileInfo:"+ftpFileInfo.toBuffer)
-      //此处ftpClientPool关闭未实现
       val dataRdd = sc.parallelize(ftpFileInfo).mapPartitions{ partitions => {
 
         val appConfPro = appConfProBroadcast.value
         FTPCompressedFileToHiveHelper.appConfPro = appConfPro
         FTPCompressedFileToHiveHelper.initPg2()
         val ftpClientPool = ftpClientPoolBroadcast.value
-        ftpClientPool.initPool(ftp_clientpool_size_executor)
+        ftpClientPool.initPool(ftp_clientpool_size_executor) //初始化ftp连接池
         val parseJson = parseJsonBroadcast.value
         val nameMoldToMap = parseJson.nameMold.toMap
         val mroFieldTypeConvertUtil = mroFieldTypeConvertUtilBrocast.value
@@ -103,9 +103,11 @@ object LoadDataToHive {
       val tmpView = String.join("_", cityName, logDate, hour)
       val structType: StructType = ParseSchema.parseToSparkShcema(parseJsonBroadcast.value)
 
+      //将rdd转成df
       val dfData = spark.createDataFrame(dataRdd, structType)
       dfData.createTempView(tmpView)
 
+      //合并小文件，插入hive表
       spark.sql(s"select*from $tmpView").coalesce(merge_hive_files).write.format("orc").mode(SaveMode.Overwrite).insertInto(s"$dbname.$tb_name")
 
       val city_date_hour_hdfs_path = appConfPro.getProperty("city_date_hour_hdfs_path")

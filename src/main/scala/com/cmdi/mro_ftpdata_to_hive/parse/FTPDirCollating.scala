@@ -15,7 +15,7 @@ import scala.collection.mutable
   * 此对象作用是整理ftp上文件结构，将ftp上符合条件数据放入“/省/日期/地市/基站id”文件夹结构的目录中
   */
 object FTPDirCollating {
-  val logger = LoggerFactory.getLogger(FTPDirCollating.getClass)
+  private val logger = LoggerFactory.getLogger(FTPDirCollating.getClass)
   var ftpClientPool: FTPClientPool = _
   var ftpFiles: mutable.Buffer[FTPFileInfo] = _
   var appConfPro: Properties = _
